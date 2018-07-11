@@ -361,6 +361,13 @@ unsigned char colors8[256][3] = {
 	{0xee, 0xee, 0xee}
 };
 
+unsigned char count_ones8(unsigned char value){
+	value = ((value&0b10101010)>>1) + (value&0b01010101);
+	value = ((value&0b11001100)>>2) + (value&0b00110011);
+	value = ((value&0b11110000)>>4) + (value&0b00001111);
+	return value;
+}
+
 bool color_compare(color a, color b){
 	if(a.red > b.red){
 		return true;
@@ -482,48 +489,28 @@ screen *create_screen(unsigned int size_x, unsigned int size_y){
 		}
 	}
 	output->print_str[size_x*size_y*23 + size_y] = (char) 0;
-	recalculate_all(output);
 	return output;
 }
 
-void recalculate_all(screen *s){
+void initialize_screen(screen *s){
 	unsigned int char_x;
 	unsigned int char_y;
-	unsigned int inner_x;
-	unsigned int inner_y;
-	unsigned char c;
-	bool foreground;
-	unsigned int x;
-	unsigned int y;
-	for(char_x = 0; char_x < s->size_x; char_x++){
-		for(char_y = 0; char_y < s->size_y; char_y++){
-			for(c = 0; c < 95; c++){
-				s->foreground_red[c][char_x][char_y].num_elements = 0;
-				s->foreground_green[c][char_x][char_y].num_elements = 0;
-				s->foreground_blue[c][char_x][char_y].num_elements = 0;
-				s->background_red[c][char_x][char_y].num_elements = 0;
-				s->background_green[c][char_x][char_y].num_elements = 0;
-				s->background_blue[c][char_x][char_y].num_elements = 0;
-				for(inner_x = 0; inner_x < 8; inner_x++){
-					for(inner_y = 0; inner_y < 13; inner_y++){
-						x = char_x*8 + inner_x;
-						y = char_y*13 + inner_y;
-						if((0b10000000>>inner_x)&ascii_chars[c][12 - inner_y]){
-							foreground = true;
-						} else {
-							foreground = false;
-						}
-						if(foreground){
-							add_value(s->foreground_red[c][char_x] + char_y, s->data[x][y].red);
-							add_value(s->foreground_green[c][char_x] + char_y, s->data[x][y].green);
-							add_value(s->foreground_blue[c][char_x] + char_y, s->data[x][y].blue);
-						} else {
-							add_value(s->background_red[c][char_x] + char_y, s->data[x][y].red);
-							add_value(s->background_green[c][char_x] + char_y, s->data[x][y].green);
-							add_value(s->background_blue[c][char_x] + char_y, s->data[x][y].blue);
-						}
-					}
-				}
+	unsigned int i;
+	unsigned char num_ones;
+	unsigned char c;	
+	for(c = 0; c < 95; c++){
+		num_ones = 0;
+		for(i = 0; i < 13; i++){
+			num_ones += count_ones8(ascii_chars[c][i]);
+		}
+		for(char_x = 0; char_x < s->size_x; char_x++){
+			for(char_y = 0; char_y < s->size_y; char_y++){
+				s->foreground_red[c][char_x][char_y].num_elements = num_ones;
+				s->foreground_green[c][char_x][char_y].num_elements = num_ones;
+				s->foreground_blue[c][char_x][char_y].num_elements = num_ones;
+				s->background_red[c][char_x][char_y].num_elements = 104 - num_ones;
+				s->background_green[c][char_x][char_y].num_elements = 104 - num_ones;
+				s->background_blue[c][char_x][char_y].num_elements = 104 - num_ones;
 			}
 		}
 	}
@@ -575,6 +562,51 @@ unsigned char match_color(color c){
 	return best;
 }
 
+void initialize_pixel(screen *s, unsigned int x, unsigned int y, color c){
+	unsigned int char_x;
+	unsigned int char_y;
+	unsigned char inner_x;
+	unsigned char inner_y;
+	bool foreground;
+	unsigned char i;
+	double total_variance;
+	
+	char_x = x/8;
+	char_y = y/13;
+	inner_x = x%8;
+	inner_y = y%13;
+	for(i = 0; i < 95; i++){
+		if((0b10000000>>inner_x)&ascii_chars[i][12 - inner_y]){
+			foreground = true;
+		} else {
+			foreground = false;
+		}
+		if(foreground){
+			add_value(s->foreground_red[i][char_x] + char_y, c.red);
+			add_value(s->foreground_green[i][char_x] + char_y, c.green);
+			add_value(s->foreground_blue[i][char_x] + char_y, c.blue);
+		} else {
+			add_value(s->background_red[i][char_x] + char_y, c.red);
+			add_value(s->background_green[i][char_x] + char_y, c.green);
+			add_value(s->background_blue[i][char_x] + char_y, c.blue);
+		}
+		total_variance = get_variance(s->foreground_red[i][char_x] + char_y) + get_variance(s->foreground_green[i][char_x] + char_y) + get_variance(s->foreground_blue[i][char_x] + char_y) + get_variance(s->background_red[i][char_x] + char_y) + get_variance(s->background_green[i][char_x] + char_y) + get_variance(s->background_blue[i][char_x] + char_y);
+		if(total_variance < s->best_variance[char_x][char_y]){
+			s->foreground_colors[char_x][char_y] = (color) {.red = s->foreground_red[i][char_x][char_y].mean, .green = s->foreground_green[i][char_x][char_y].mean, .blue = s->foreground_blue[i][char_x][char_y].mean};
+			s->background_colors[char_x][char_y] = (color) {.red = s->background_red[i][char_x][char_y].mean, .green = s->background_green[i][char_x][char_y].mean, .blue = s->background_blue[i][char_x][char_y].mean};
+
+			s->best_variance[char_x][char_y] = total_variance;
+			if(i == 95){
+				s->chars[char_x][char_y] = (char) 219;
+				set_char(s, char_x, char_y, (char) 219, match_color(s->foreground_colors[char_x][char_y]), match_color(s->background_colors[char_x][char_y]));
+			} else {
+				s->chars[char_x][char_y] = i + 32;
+				set_char(s, char_x, char_y, i + 32, match_color(s->foreground_colors[char_x][char_y]), match_color(s->background_colors[char_x][char_y]));
+			}
+		}
+	}
+	s->data[x][y] = c;
+}
 
 void set_pixel(screen *s, unsigned int x, unsigned int y, color c){
 	unsigned int char_x;

@@ -48,11 +48,13 @@ void subtract_value(variance *v, double value);
 
 screen *create_screen(unsigned int size_x, unsigned int size_y);
 
-void recalculate_all(screen *s);
+void initialize_screen(screen *s);
 
 void set_char(screen *s, unsigned int x, unsigned int y, char c, unsigned char foreground, unsigned char background);
 
 unsigned char match_color(color c);
+
+void initialize_pixel(screen *s, unsigned int x, unsigned int y, color c);
 
 void set_pixel(screen *s, unsigned int x, unsigned int y, color c);
 

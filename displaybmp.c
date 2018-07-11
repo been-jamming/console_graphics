@@ -26,7 +26,7 @@ int main(int argc, char* argv[]){
 	for(x = 0; x < width; x++){
 		for(y = 0; y < height; y++){
 			BMP_GetPixelRGB(bmp, x, y, &c.red, &c.green, &c.blue);
-			set_pixel(s, x, y, c);
+			initialize_pixel(s, x, y, c);
 		}
 	}
 	display(s);
