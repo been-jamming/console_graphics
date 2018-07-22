@@ -1,3 +1,10 @@
+/*Console Graphics in C
+ *
+ * By Ben Jones
+ *
+ * Matches 24 bit color space to 256 color ascii and prints it to the screen
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
