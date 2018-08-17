@@ -3,10 +3,6 @@ Graphics for consoles
 
 An example program "displaybmp.c" is included to demonstrate the capabilities of the ascii renderer.
 
-To compile, run the following:
-
-```gcc displaybmp.c console_graphics2.c qdbmp.c -Ofast -o displaybmp```
-
 To run:
 
 ```./displaybmp file.bmp```
